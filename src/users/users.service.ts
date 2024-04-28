@@ -4,22 +4,36 @@ import { User } from '../schemas/user.schema';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create.user.dto';
 import { UpdateUserDto } from './dto/update.user.dto';
+import { UserSettings } from '../schemas/userSettings.schema';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private user: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private user: Model<User>,
+    @InjectModel(UserSettings.name) private userSettings: Model<UserSettings>,
+  ) {}
 
-  createUser(createUserDto: CreateUserDto) {
+  async createUser(createUserDto: CreateUserDto) {
+    if (createUserDto.settings) {
+      const settings = await new this.userSettings(
+        createUserDto.settings,
+      ).save();
+      const newUser = new this.user({
+        ...createUserDto,
+        settings: settings.id,
+      });
+      return newUser.save();
+    }
     const newUser = new this.user(createUserDto);
     return newUser.save();
   }
 
   getUsers() {
-    return this.user.find();
+    return this.user.find().populate('settings');
   }
 
   getUserById(id: string) {
-    return this.user.findById(id);
+    return this.user.findById(id).populate(['settings', 'posts']);
   }
 
   updateUser(id: string, updateUserDto: UpdateUserDto) {
